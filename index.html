@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Cube 6-Face 晶片擬真物理架構與多尺度檢視系統</title>
-    <!-- Three.js & OrbitControls -->
+    <title>3D-CUBE 晶片擬真物理架構與多尺度檢視系統</title>
+    <!-- Three.js & OrbitControls CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- Tailwind CSS -->
@@ -12,7 +12,7 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #030712; font-family: system-ui, -apple-system, sans-serif; color: #f3f4f6; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
-        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(0, 240, 255, 0.2); }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(0, 240, 255, 0.25); }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 3px; }
     </style>
@@ -34,10 +34,10 @@
         </button>
     </div>
 
-    <!-- 左側元件顯隱與透明度控制開關 -->
+    <!-- 左側元件顯隱與動態控制開關 -->
     <div class="absolute top-20 left-4 z-10 w-80 glass-panel p-5 rounded-2xl max-h-[85vh] overflow-y-auto custom-scrollbar flex flex-col gap-4 shadow-2xl">
         <h2 class="text-cyan-400 font-bold text-base flex items-center gap-2 border-b border-slate-700/60 pb-2">
-            <span>⚙️ 物理元件分層顯隱與透明度</span>
+            <span>⚙️ 物理元件分層顯隱與控制</span>
         </h2>
 
         <!-- Stage 1 控項 -->
@@ -48,7 +48,7 @@
                 <input type="checkbox" id="chk-outer-shell" checked onchange="updateVisibility()" class="accent-cyan-400 w-4 h-4">
             </label>
             <label class="flex items-center justify-between text-xs cursor-pointer hover:text-cyan-300">
-                <span>外層外殼透明化 (Transparency)</span>
+                <span>外層外殼半透明化 (Glass Effect)</span>
                 <input type="checkbox" id="chk-outer-glass" checked onchange="updateVisibility()" class="accent-cyan-400 w-4 h-4">
             </label>
             <label class="flex items-center justify-between text-xs cursor-pointer hover:text-cyan-300">
@@ -109,7 +109,7 @@
         <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider" id="info-stage-title">巨觀尺度：雙層嵌套外殼與獨立管道</div>
         <div class="text-sm font-semibold text-slate-100" id="info-component-title">外層補充孔 vs. 內層智慧控制閘門</div>
         <p class="text-xs text-slate-300 leading-relaxed" id="info-component-desc">
-            外層外殼僅提供氣體與冷媒補充孔與 Pins，流體儲存在雙層嵌套的夾層腔體中。內層外殼配有智慧閥門，按需釋放流體進入晶片空間。
+            外層外殼僅提供氣體與冷媒補充孔與 Pins，流體儲存在雙層嵌套的夾層腔體中（絕不直接淹沒晶片）。內層外殼配有智慧閥門，按需釋放流體進入晶片空間。
         </p>
     </div>
 
@@ -153,14 +153,15 @@
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
+            // 環境光與雙向光源
             const ambient = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambient);
 
-            const sun1 = new THREE.DirectionalLight(0x00f0ff, 1.0);
+            const sun1 = new THREE.DirectionalLight(0x00f0ff, 1.2);
             sun1.position.set(20, 30, 20);
             scene.add(sun1);
 
-            const sun2 = new THREE.DirectionalLight(0xa855f7, 0.6);
+            const sun2 = new THREE.DirectionalLight(0xa855f7, 0.8);
             sun2.position.set(-20, -10, -20);
             scene.add(sun2);
 
@@ -179,39 +180,49 @@
             animate();
         }
 
+        // ==========================================
+        // 📦 STAGE 1: 巨觀雙層嵌套外殼與管道
+        // ==========================================
         function buildStage1() {
+            // 外層外殼 (Outer Shell) - 僅帶補充孔
             const outerGeo = new THREE.BoxGeometry(10, 8, 10);
             const outerMat = new THREE.MeshPhysicalMaterial({
                 color: 0x38bdf8, metalness: 0.1, roughness: 0.1,
-                transmission: 0.85, transparent: true, opacity: 0.4, depthWrite: false
+                transmission: 0.85, transparent: true, opacity: 0.35, depthWrite: false
             });
             outerShellMesh = new THREE.Mesh(outerGeo, outerMat);
             stage1Group.add(outerShellMesh);
 
+            // 內層外殼 (Inner Shell) - 帶智慧控制閥門
             const innerGeo = new THREE.BoxGeometry(8.5, 6.5, 8.5);
             const innerMat = new THREE.MeshPhysicalMaterial({
                 color: 0xa855f7, metalness: 0.2, roughness: 0.2,
-                transmission: 0.6, transparent: true, opacity: 0.5, depthWrite: false
+                transmission: 0.6, transparent: true, opacity: 0.45, depthWrite: false
             });
             innerShellMesh = new THREE.Mesh(innerGeo, innerMat);
             stage1Group.add(innerShellMesh);
 
+            // 補充孔與控制閥門 Group
             portsGroup = new THREE.Group();
-            const portGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16);
+            
+            // 外層補充孔 (Top Ports)
+            const portGeo = new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16);
             const portMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9, roughness: 0.1 });
             
             const p1 = new THREE.Mesh(portGeo, portMat); p1.position.set(-2, 4.2, 0); portsGroup.add(p1);
             const p2 = new THREE.Mesh(portGeo, portMat); p2.position.set(2, 4.2, 0); portsGroup.add(p2);
 
-            const valveGeo = new THREE.BoxGeometry(0.6, 0.6, 0.4);
-            const valveMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8, emissive: 0x990000, emissiveIntensity: 0.4 });
+            // 內層智慧控制閥門 (Inner Valves)
+            const valveGeo = new THREE.BoxGeometry(0.7, 0.7, 0.3);
+            const valveMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8, emissive: 0x990000, emissiveIntensity: 0.5 });
             
             const v1 = new THREE.Mesh(valveGeo, valveMat); v1.position.set(-2, 3.1, 4.25); portsGroup.add(v1);
             const v2 = new THREE.Mesh(valveGeo, valveMat); v2.position.set(2, 3.1, 4.25); portsGroup.add(v2);
 
+            // 底部 Substrate 電源 Pins 陣列
             for (let i = -3.5; i <= 3.5; i += 1.0) {
                 for (let j = -3.5; j <= 3.5; j += 1.0) {
-                    const pinGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8);
+                    const pinGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8);
                     const pinMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 1.0 });
                     const pin = new THREE.Mesh(pinGeo, pinMat);
                     pin.position.set(i, -4.3, j);
@@ -221,31 +232,39 @@
 
             stage1Group.add(portsGroup);
 
+            // 腔體內部封裝的核心晶片塊
             const coreGeo = new THREE.BoxGeometry(6, 4, 6);
             const coreMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
             const core = new THREE.Mesh(coreGeo, coreMat);
             stage1Group.add(core);
         }
 
+        // ==========================================
+        // 🧩 STAGE 2: 2×2 Chiplet 與空心支架/載板管線
+        // ==========================================
         function buildStage2() {
-            const subGeo = new THREE.BoxGeometry(8, 0.5, 8);
+            // 底層 BGA 載板 (Substrate)
+            const subGeo = new THREE.BoxGeometry(8.5, 0.5, 8.5);
             const subMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
             const sub = new THREE.Mesh(subGeo, subMat);
             sub.position.y = -2.5;
             stage2Group.add(sub);
 
+            // 載板內部空心二級水路與配電管線
             subPipeGroup = new THREE.Group();
             const pipeMatWater = new THREE.MeshStandardMaterial({ color: 0x00f0ff, metalness: 0.8 });
             const pipeMatElec = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
 
-            for (let k = -2.5; k <= 2.5; k += 1.6) {
-                const wPipeGeo = new THREE.CylinderGeometry(0.08, 0.08, 7.2, 12);
+            for (let k = -2.8; k <= 2.8; k += 1.4) {
+                // 水路管
+                const wPipeGeo = new THREE.CylinderGeometry(0.08, 0.08, 7.8, 12);
                 const wPipe = new THREE.Mesh(wPipeGeo, pipeMatWater);
                 wPipe.rotation.z = Math.PI / 2;
                 wPipe.position.set(0, -2.4, k);
                 subPipeGroup.add(wPipe);
 
-                const ePipeGeo = new THREE.CylinderGeometry(0.1, 0.1, 7.2, 12);
+                // 電源母線
+                const ePipeGeo = new THREE.CylinderGeometry(0.1, 0.1, 7.8, 12);
                 const ePipe = new THREE.Mesh(ePipeGeo, pipeMatElec);
                 ePipe.rotation.x = Math.PI / 2;
                 ePipe.position.set(k, -2.55, 0);
@@ -253,19 +272,21 @@
             }
             stage2Group.add(subPipeGroup);
 
+            // 空心水電分離四柱支架 (Quad-Pillars)
             pillarGroup = new THREE.Group();
             const pillarMat = new THREE.MeshPhysicalMaterial({
                 color: 0x38bdf8, metalness: 0.2, roughness: 0.1,
                 transmission: 0.7, transparent: true, opacity: 0.6
             });
-            const pillarPositions = [[-3.2, -3.2], [3.2, -3.2], [-3.2, 3.2], [3.2, 3.2]];
+            const pillarPositions = [[-3.4, -3.4], [3.4, -3.4], [-3.4, 3.4], [3.4, 3.4]];
 
             pillarPositions.forEach((pos, idx) => {
-                const pGeo = new THREE.CylinderGeometry(0.35, 0.35, 5, 16);
+                const pGeo = new THREE.CylinderGeometry(0.38, 0.38, 5, 16);
                 const pillar = new THREE.Mesh(pGeo, pillarMat);
                 pillar.position.set(pos[0], 0, pos[1]);
                 pillarGroup.add(pillar);
 
+                // 柱內水/電管
                 const innerGeo = new THREE.CylinderGeometry(0.12, 0.12, 5.2, 12);
                 const innerMat = idx < 2 ? pipeMatWater : pipeMatElec;
                 const innerP = new THREE.Mesh(innerGeo, innerMat);
@@ -274,6 +295,7 @@
             });
             stage2Group.add(pillarGroup);
 
+            // 2×2 橫向獨立 Chiplet Block
             chipletBlocks = [];
             const blockOffset = [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]];
 
@@ -294,6 +316,7 @@
                 chipletBlocks.push(blockGroup);
             });
 
+            // 獨立分層 Bypass TSV 快速通道 (Floor-Specific Lines)
             bypassTsvGroup = new THREE.Group();
             const tsvMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, metalness: 0.9, emissive: 0x581c87 });
 
@@ -301,7 +324,7 @@
                 const tsvGeo = new THREE.CylinderGeometry(0.06, 0.06, 4.8, 12);
                 const tsvLine = new THREE.Mesh(tsvGeo, tsvMat);
                 const angle = (i / 8) * Math.PI * 2;
-                tsvLine.position.set(Math.cos(angle) * 3.7, 0, Math.sin(angle) * 3.7);
+                tsvLine.position.set(Math.cos(angle) * 3.8, 0, Math.sin(angle) * 3.8);
                 bypassTsvGroup.add(tsvLine);
             }
             stage2Group.add(bypassTsvGroup);
@@ -311,21 +334,23 @@
         // 🔬 STAGE 3: 精確 8 方向導線 + 1 TSV 貫穿特寫
         // ==========================================
         function buildStage3() {
+            // 晶片底座
             const dieBaseGeo = new THREE.BoxGeometry(10, 0.3, 10);
             const dieBaseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
             const dieBase = new THREE.Mesh(dieBaseGeo, dieBaseMat);
             dieBase.position.y = -1;
             stage3Group.add(dieBase);
 
-            const blankGeo = new THREE.PlaneGeometry(3, 3);
+            // 矽晶圓角落留白回收區域
+            const blankGeo = new THREE.PlaneGeometry(3.2, 3.2);
             const blankMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide, opacity: 0.6, transparent: true });
             const blankTile = new THREE.Mesh(blankGeo, blankMat);
             blankTile.rotation.x = Math.PI / 2;
             blankTile.position.set(3, -0.84, 3);
             stage3Group.add(blankTile);
 
-            // 中央紅綠燈電晶體
-            const tgGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+            // 中央紅綠燈電晶體 (Traffic Gate Transistor)
+            const tgGeo = new THREE.BoxGeometry(1.3, 1.3, 1.3);
             const tgMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xd97706, emissiveIntensity: 0.6, metalness: 0.8 });
             trafficGateMesh = new THREE.Mesh(tgGeo, tgMat);
             trafficGateMesh.position.set(0, 0, 0);
@@ -334,24 +359,24 @@
             lines8Group = new THREE.Group();
             const lineMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.1 });
 
-            // (1) 中央第 9 條垂直 TSV 通道
-            const tsvCentralGeo = new THREE.CylinderGeometry(0.12, 0.12, 5, 16);
+            // (1) 中央第 9 條垂直 TSV 通道 (貫穿紅綠燈電晶體正中心)
+            const tsvCentralGeo = new THREE.CylinderGeometry(0.12, 0.12, 5.2, 16);
             const tsvCentralMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, metalness: 0.9 });
             const tsvCentral = new THREE.Mesh(tsvCentralGeo, tsvCentralMat);
             tsvCentral.position.set(0, 0, 0);
             lines8Group.add(tsvCentral);
 
-            // (2) 八個方向精確對應的 8 條導線 (前後左右 + 四斜向，具備微幅 Z-Height 高低差)
+            // (2) 八個方向對應的 8 條導線 (前後左右 + 四斜向，具備微幅 Z-Height 高低差)
             const angles8 = [0, 45, 90, 135, 180, 225, 270, 315];
-            const length = 9.0;
+            const length = 9.2;
 
             angles8.forEach((deg, idx) => {
                 const rad = (deg * Math.PI) / 180;
                 const wireGeo = new THREE.CylinderGeometry(0.05, 0.05, length, 12);
                 const wire = new THREE.Mesh(wireGeo, lineMat);
                 
-                // 微幅高低差防止空間幾何短路
-                const heightOffset = -0.4 + idx * 0.11;
+                // 微幅高低差防止幾何短路
+                const heightOffset = -0.45 + idx * 0.12;
 
                 wire.rotation.x = Math.PI / 2;
                 wire.rotation.z = rad;
@@ -362,15 +387,15 @@
 
             // 方向電晶體 (Directional Transistor)
             dirGateMesh = new THREE.Group();
-            const dgGeo = new THREE.ConeGeometry(0.25, 0.5, 16);
+            const dgGeo = new THREE.ConeGeometry(0.28, 0.55, 16);
             const dgMat = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669 });
 
             const dg1 = new THREE.Mesh(dgGeo, dgMat); dg1.rotation.z = -Math.PI / 2; dg1.position.set(2.5, -0.28, 0); dirGateMesh.add(dg1);
             stage3Group.add(dirGateMesh);
 
-            // 電子回收金屬抽吸管路
+            // 定向氣流噴嘴 + 留白區回收管線 (Collector Pipe)
             harvestingPipeGroup = new THREE.Group();
-            const nozzleGeo = new THREE.ConeGeometry(0.2, 0.6, 12);
+            const nozzleGeo = new THREE.ConeGeometry(0.22, 0.65, 12);
             const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
             const nozzle = new THREE.Mesh(nozzleGeo, nozzleMat);
             nozzle.rotation.z = -Math.PI / 3;
@@ -382,7 +407,7 @@
                 new THREE.Vector3(4, -1.5, 3),
                 new THREE.Vector3(4, -2.5, 0)
             ]);
-            const tubeGeo = new THREE.TubeGeometry(pipeCurve, 20, 0.1, 8, false);
+            const tubeGeo = new THREE.TubeGeometry(pipeCurve, 20, 0.12, 8, false);
             const tubeMat = new THREE.MeshStandardMaterial({ color: 0x10b981, metalness: 0.9 });
             const pipe = new THREE.Mesh(tubeGeo, tubeMat);
             harvestingPipeGroup.add(pipe);
@@ -390,6 +415,9 @@
             stage3Group.add(harvestingPipeGroup);
         }
 
+        // ==========================================
+        // 🎛️ 切換 3 大尺度 View & UI 連動
+        // ==========================================
         function setStage(stageNum) {
             currentStage = stageNum;
 
@@ -413,7 +441,7 @@
                 camera.position.set(15, 12, 18);
                 document.getElementById('info-stage-title').textContent = "巨觀尺度：雙層嵌套外殼與獨立管道";
                 document.getElementById('info-component-title').textContent = "外層補充孔 vs. 內層智慧控制閘門";
-                document.getElementById('info-component-desc').textContent = "外層外殼僅提供氣體與冷媒補充孔與 Pins，流體儲存在雙層嵌套的夾層腔體中。內層外殼配有智慧閥門，按需釋放流體。";
+                document.getElementById('info-component-desc').textContent = "外層外殼僅提供氣體與冷媒補充孔與 Pins，流體儲存在雙層嵌套的夾層腔體中（絕不淹沒晶片）。內層外殼配有智慧閥門，按需釋放流體進入晶片空間。";
             } else if (stageNum === 2) {
                 camera.position.set(12, 10, 14);
                 document.getElementById('info-stage-title').textContent = "介觀尺度：2×2 Chiplet 陣列與空心支架/載板";
@@ -429,10 +457,11 @@
             controls.reset();
         }
 
+        // 顯隱狀態控制
         function updateVisibility() {
             if (outerShellMesh) {
                 outerShellMesh.visible = document.getElementById('chk-outer-shell').checked;
-                outerShellMesh.material.opacity = document.getElementById('chk-outer-glass').checked ? 0.25 : 0.9;
+                outerShellMesh.material.opacity = document.getElementById('chk-outer-glass').checked ? 0.25 : 0.85;
             }
             if (innerShellMesh) innerShellMesh.visible = document.getElementById('chk-inner-shell').checked;
             if (portsGroup) portsGroup.visible = document.getElementById('chk-ports').checked;
@@ -447,6 +476,7 @@
             if (harvestingPipeGroup) harvestingPipeGroup.visible = document.getElementById('chk-harvesting-pipe').checked;
         }
 
+        // 2×2 Chiplet 張開拉距滑桿
         function updateExplode() {
             const val = parseFloat(document.getElementById('rng-chiplet-explode').value);
             chipletBlocks.forEach(b => {
@@ -467,6 +497,7 @@
             requestAnimationFrame(animate);
             controls.update();
 
+            // 紅綠燈閘極脈衝燈光效果
             if (trafficGateMesh) {
                 trafficGateMesh.material.emissiveIntensity = 0.4 + Math.sin(Date.now() * 0.005) * 0.3;
             }
